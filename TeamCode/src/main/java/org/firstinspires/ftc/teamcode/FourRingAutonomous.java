@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import android.graphics.Color;
+import org.firstinspires.ftc.robotcore.external.Telemetry;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
@@ -62,9 +63,9 @@ public class FourRingAutonomous extends LinearOpMode {
     Orientation angles;
     Acceleration gravity;
     double heading;
-    boolean didTurn = false;
+    boolean turned180 = false;
     boolean didStrafe = false;
-    boolean atZero;
+    boolean isStraight = false;
 
     
 //Declaring Camera Variables 
@@ -174,20 +175,34 @@ public class FourRingAutonomous extends LinearOpMode {
             encoders("n");
             
             if(quadStack) {
-                goToWhite();
+                goToWhite(0.3);
                 sleep(100);
-                goToRed();
+                goToRed(0.3);
             } else if(singleStack) {
-                goToWhite();
+                goToWhite(0.27);
                 sleep(100);
-                goToRed();
-                sleep(250);
-                turn("r", 180, 0.3);
+                goToRed(0.33);
+                encoders("y");
                 sleep(100);
-                straightenRobot();
+                strafe("r", 500, 17);
+                encoders("n");
+                
+                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+                double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
+                
+                sleep(100);
+                straightenRobot(heading, 0.33);
+                stopRobot();
+                sleep(100);
+                goToRed(0.35);
+                sleep(100);
+                moveRobot(0.35, 0.35, 0.35, 0.35, 120);
+                sleep(50);
+                stopRobot();
+                dropWobble();
+                forceStop();
             } else {
-                goToWhite();                                         
-                goToRed();
+                dropWobble();
             }
             forceStop();
         }
@@ -251,11 +266,21 @@ public class FourRingAutonomous extends LinearOpMode {
     
     public void encoders(String answer) {
         if (answer.equals("y")) {
+            lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        
             rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             lf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
             lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
         } else if (answer.equals("n")) {
+            lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            
             rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
             rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
@@ -274,9 +299,21 @@ public class FourRingAutonomous extends LinearOpMode {
     }
     
     
+    
+    public void dropWobble() {
+        bs.setPosition(0.25);
+        sleep(250);
+        sleep(250);
+        ts.setPosition(0);
+        sleep(50);
+        sleep(350);
+        bs.setPosition(0);
+        sleep(225);
+    }
+    
 
 //Method to Find & Move to the White Line
-    public void goToWhite() {
+    public void goToWhite(double speed) {
     //Needed (non-changing) Variables
         int countWhite = 0;
         
@@ -289,20 +326,20 @@ public class FourRingAutonomous extends LinearOpMode {
             
         //If-Else-If Statment to Drive Forward in a Straight Line
             if (heading < -0.1  && heading > -90){
-                lf.setPower(0.3 - (0.025 * heading));
-                lb.setPower(0.3 - (0.025 * heading));
-                rf.setPower(0.3 + (0.025 * heading));
-                rb.setPower(0.3 + (0.025 * heading));       
+                lf.setPower(speed - (0.025 * heading));
+                lb.setPower(speed - (0.025 * heading));
+                rf.setPower(speed + (0.025 * heading));
+                rb.setPower(speed + (0.025 * heading));       
             }else if (heading > 0.1 && heading < 90){
-                lf.setPower(0.3 + (0.025 * heading));
-                lb.setPower(0.3 + (0.025 * heading));
-                rf.setPower(0.3 - (0.025 * heading));
-                rb.setPower(0.3 - (0.025 * heading));    
+                lf.setPower(speed + (0.025 * heading));
+                lb.setPower(speed + (0.025 * heading));
+                rf.setPower(speed - (0.025 * heading));
+                rb.setPower(speed - (0.025 * heading));    
             } else {
-                lf.setPower(0.3);
-                lb.setPower(0.3);
-                rf.setPower(0.3);
-                rb.setPower(0.3);
+                lf.setPower(speed);
+                lb.setPower(speed);
+                rf.setPower(speed);
+                rb.setPower(speed);
             }
 
         //Telemetry Info for Diagnostics
@@ -319,11 +356,12 @@ public class FourRingAutonomous extends LinearOpMode {
             }
             countWhite++;
         }
+        foundWhite = false;
     }
     
     
     //Method to find & Move to the Red line
-    public void goToRed() {
+    public void goToRed(double speed) {
     //Needed (non-changing) Variables
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         int countRed = 0;
@@ -335,22 +373,22 @@ public class FourRingAutonomous extends LinearOpMode {
             double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
             
         //If-Else-If Statement to Drive Forward in a Straight Line
-            /*if (heading < -0.1  && heading > -90){
-                lf.setPower(0.3 - (0.025 * heading));
-                lb.setPower(0.3 - (0.025 * heading));
-                rf.setPower(0.3 + (0.025 * heading));
-                rb.setPower(0.3 + (0.025 * heading));       
+            if (heading < -0.1  && heading > -90){
+                lf.setPower(speed - (0.025 * heading));
+                lb.setPower(speed - (0.025 * heading));
+                rf.setPower(speed + (0.025 * heading));
+                rb.setPower(speed + (0.025 * heading));       
             }else if (heading > 0.1 && heading < 90){
-                lf.setPower(0.3 + (0.025 * heading));
-                lb.setPower(0.3 + (0.025 * heading));
-                rf.setPower(0.3 - (0.025 * heading));
-                rb.setPower(0.3 - (0.025 * heading));    
+                lf.setPower(speed + (0.025 * heading));
+                lb.setPower(speed + (0.025 * heading));
+                rf.setPower(speed - (0.025 * heading));
+                rb.setPower(speed - (0.025 * heading));    
             } else {
-                lf.setPower(0.3);
-                lb.setPower(0.3);
-                rf.setPower(0.3);
-                rb.setPower(0.3);
-            } */
+                lf.setPower(speed);
+                lb.setPower(speed);
+                rf.setPower(speed);
+                rb.setPower(speed);
+            }
 
         //Telemetry Info for Diagnostics
             telemetry.addLine()
@@ -366,11 +404,12 @@ public class FourRingAutonomous extends LinearOpMode {
             }
             countRed++;
         }
+        foundRed = false; 
     }
     
 
 //Method to Shoot Rings for Designated Time (seconds)
-    public void shootRing(int wantedTime) {
+    public void shootRing(int wantedTime, double speed) {
         long time = System.currentTimeMillis();
         long _time = time + (wantedTime * 1000);
 
@@ -388,54 +427,39 @@ public class FourRingAutonomous extends LinearOpMode {
     }
 
 
-    public void turn(String direction, int wantedTurn, double speed) {
-        while (opModeIsActive() && !didTurn) {
-            if (direction.equals("r")) {
-                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-                double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
-
-                rf.setPower(-speed);
-                lf.setPower(speed);
-                rb.setPower(-speed);
-                lb.setPower(speed);
-
-                if (heading <= -(wantedTurn + 1) && heading >= -(wantedTurn - 1)) {
-                    stopRobot();
-                    didTurn = true;
-                }
-
-            } else if (direction.equals("l")) {
-                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-                double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
-
-                rf.setPower(speed);
-                lf.setPower(-speed);
-                rb.setPower(speed);
-                lb.setPower(-speed);
-
-                if (heading <= (wantedTurn + 1) && heading >= (wantedTurn - 1)) {
-                    stopRobot();
-                    didTurn = true;
-                }
-
-            } else {
+    public void turn180(double speed) {
+        while (opModeIsActive() && !turned180) {
+            angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+            double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
+            
+            rf.setPower(-speed);
+            lf.setPower(speed);
+            rb.setPower(-speed);
+            lb.setPower(speed);
+            
+            telemetry.addData("heading", heading);
+            telemetry.update();
+            
+            if (heading <= 181 && heading >= 179) {
                 stopRobot();
+                turned180 = true;
             }
         }
+        turned180 = false;
     }
     
     
     
-    public void strafe(char direction, int speed, double length) {
+    public void strafe(String direction, int ticks, double length) {
         double calcPosition = length * (100* 280/(16.9646003294*4 *8.8 * 1.0555555556));
         int setPosition = (int) Math.round(calcPosition);
         
-        if (direction == 'r') {
+        if (direction.equals("r")) {
             lf.setTargetPosition(setPosition);
             rf.setTargetPosition(-setPosition);
             lb.setTargetPosition(-setPosition);
             rb.setTargetPosition(setPosition);
-        } else if (direction == 'l') {
+        } else if (direction.equals("l")) {
             lf.setTargetPosition(-setPosition);
             rf.setTargetPosition(setPosition);
             lb.setTargetPosition(setPosition);
@@ -449,10 +473,10 @@ public class FourRingAutonomous extends LinearOpMode {
         lb.setMode(DcMotor.RunMode.RUN_TO_POSITION);
         rb.setMode(DcMotor.RunMode.RUN_TO_POSITION);
       
-        lf.setVelocity(500);
-        rf.setVelocity(500);
-        lb.setVelocity(500);
-        rb.setVelocity(500);
+        lf.setVelocity(ticks);
+        rf.setVelocity(ticks);
+        lb.setVelocity(ticks);
+        rb.setVelocity(ticks);
       
         while (opModeIsActive() && lf.isBusy()) {
             telemetry.addData("position", lf.getCurrentPosition());
@@ -467,39 +491,77 @@ public class FourRingAutonomous extends LinearOpMode {
     }
     
     
-    public void encoderStraight() {
-        
+    public void encoderStraight(int ticks, double length) {
+        double calcPosition = length * (100* 280/(16.9646003294*4 *8.8 * 1.0555555556));
+        int setPosition = (int) Math.round(calcPosition);
+      
+        lf.setTargetPosition(setPosition);
+        rf.setTargetPosition(setPosition);
+        lb.setTargetPosition(setPosition);
+        rb.setTargetPosition(setPosition);
+      
+        lf.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rf.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        lb.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rb.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+      
+        lf.setVelocity(ticks);
+        rf.setVelocity(ticks);
+        lb.setVelocity(ticks);
+        rb.setVelocity(ticks);
+      
+        while (opModeIsActive() && lf.isBusy()) {
+            telemetry.addData("position", lf.getCurrentPosition());
+            telemetry.addData("is at target", !lf.isBusy());
+            telemetry.update();
+        }
+      
+        lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
     }
 
-    public void straightenRobot() {
-        while (opModeIsActive()) {
-            angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
-            double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
-
-            if (heading > 1) {
-                do {
-                    rf.setPower(-0.25);
-                    lf.setPower(0.25);
-                    rb.setPower(-0.25);
-                    lb.setPower(0.25);
-
-                    telemetry.addData("Heading Output", "%.3f", heading);
-                    telemetry.update();
-                } while (heading > 1);
-
-            } else if (heading < -1) {
-                do {
-                    rf.setPower(0.25);
-                    lf.setPower(-0.25);
-                    rb.setPower(0.25);
-                    lb.setPower(-0.25);
-
-                    telemetry.addData("Heading Output", "%.3f", heading);
-                    telemetry.update();
-                } while (heading < -1);
-            } else {
-                stopRobot();
+    public void straightenRobot(double currentHeading, double speed) {
+        if (currentHeading > 2) {
+            while (opModeIsActive() && !isStraight) {
+                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+                double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
+            
+                rf.setPower(-speed);
+                lf.setPower(speed);
+                rb.setPower(-speed);
+                lb.setPower(speed);
+                
+                telemetry.addData("Heading Output", "%.3f", heading);
+                telemetry.update();
+                
+                if (heading <= 1 && heading >= -1) {
+                    stopRobot();
+                    isStraight = true;
+                }
             }
+        } else if (currentHeading < -2) {
+            while (opModeIsActive() && !isStraight) {
+                angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+                double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
+                
+                rf.setPower(speed);
+                lf.setPower(-speed);
+                rb.setPower(speed);
+                lb.setPower(-speed);
+                
+                telemetry.addData("Heading Output", "%.3f", heading);
+                telemetry.update();
+                
+                if (heading <= 1 && heading >= -1) {
+                    stopRobot();
+                    isStraight = true;
+                }
+            }
+        } else {
+            stopRobot();
         }
+        isStraight = false;
     }
 }

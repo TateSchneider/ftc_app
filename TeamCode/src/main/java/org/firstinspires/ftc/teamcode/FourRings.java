@@ -1,6 +1,7 @@
 package org.firstinspires.ftc.teamcode;
 
 import com.qualcomm.hardware.bosch.BNO055IMU;
+import com.qualcomm.robotcore.eventloop.opmode.Autonomous;
 import com.qualcomm.hardware.bosch.JustLoggingAccelerationIntegrator;
 import com.qualcomm.robotcore.eventloop.opmode.LinearOpMode;
 import com.qualcomm.robotcore.hardware.DcMotor;
@@ -26,6 +27,8 @@ import org.firstinspires.ftc.robotcore.external.tfod.TFObjectDetector;
 
 import java.util.List;
 import java.util.Locale;
+
+@Autonomous
 
 public class FourRings extends LinearOpMode {
 
@@ -107,9 +110,9 @@ public class FourRings extends LinearOpMode {
         //initVuforia();
         //initTfod();
 
-        if (tfod != null) {
+        /* if (tfod != null) {
             tfod.activate();
-        }
+        } */
 
         //Camera Detection
         ts.setPosition(0.92);
@@ -118,7 +121,7 @@ public class FourRings extends LinearOpMode {
         sleep(200);
 
 
-        boolean singleStack = false;
+        /* boolean singleStack = false;
         boolean quadStack = false;
         while (!opModeIsActive()) {
             if (tfod != null) {
@@ -136,13 +139,18 @@ public class FourRings extends LinearOpMode {
                     telemetry.update();
                 }
             }
-        }
+        } */
         imu.initialize(parameters);
 
         lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+        
+        lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        lb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
 
         telemetry.addData("Stat", "Start Program");
         telemetry.update();
@@ -151,7 +159,7 @@ public class FourRings extends LinearOpMode {
         waitForStart();
 
         senseLine("white", 0.35);
-        strafeRightUntil(30);
+        /* strafeRightUntil(30);
         senseLine("red", 0.35);
         senseLine("red", 0.35);
 
@@ -164,7 +172,7 @@ public class FourRings extends LinearOpMode {
         senseLine("red", -0.35);
 
         strafeRightUntil(5);
-        senseLineFollowWall("white");
+        senseLineFollowWall("white"); */
 
 
         /*
@@ -289,17 +297,17 @@ public class FourRings extends LinearOpMode {
             telemetry.addLine()
                     .addData("Alpha Output", "%.3f", colors.alpha)
                     .addData("Heading Output", "%.3f", heading)
-                    .addData("Loop Count", "%,3f", countRed);
+                    .addData("Loop Count", countRed);
             telemetry.update();
 
-            if (color == "red") {
+            if (color.equals("red")) {
                 //If Statement to Detect the Red Line and Break the Loop
                 if (colors.alpha < 0.2) {
                     stopRobot();
                     foundRed = true;
                 }
                 countRed++;
-            } else if (color == "white") {
+            } else if (color.equals("white")) {
                 if (colors.alpha > 0.5) {
                     stopRobot();
                     foundWhite = true;
@@ -314,6 +322,11 @@ public class FourRings extends LinearOpMode {
     }
 
     void moveInches(double lengthUsingInches) {
+        lf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        
         double calcPosition = lengthUsingInches * (100* 280/(16.9646003294*4 *8.8 * 1.0555555556));
         int setPosition = (int) Math.round(calcPosition);
 
@@ -379,7 +392,7 @@ public class FourRings extends LinearOpMode {
     void senseLineFollowWall(String color/*, double speed, double centimetersFromWall*/) {
         NormalizedRGBA colors = colorSensor.getNormalizedColors();
 
-        if (color == "white") {
+        if (color.equals("white")) {
             while (opModeIsActive() && !foundWhite) {
                 if (colors.alpha > 0.5) {
                     stopRobot();
@@ -397,7 +410,7 @@ public class FourRings extends LinearOpMode {
                 rb.setPower((-speed * distanceReading) + (speed * (centimetersFromWall + 1.0));
                  */
             }
-        } else if (color == "red") {
+        } else if (color.equals("red")) {
             while (opModeIsActive() && !foundRed) {
                 if (colors.alpha < 0.2) {
                     stopRobot();

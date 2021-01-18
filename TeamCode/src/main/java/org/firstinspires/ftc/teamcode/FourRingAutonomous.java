@@ -29,7 +29,7 @@ import java.util.List;
 import java.util.Locale;
 
 
-@Autonomous(name = "TestAutonomous", group = "comp")
+@Autonomous(name = "FourRingAutonomous", group = "comp")
 
 
 /*******************************************************************************
@@ -54,12 +54,14 @@ public class FourRingAutonomous extends LinearOpMode {
     private     Servo       bs;         //port 1
     
     NormalizedColorSensor colorSensor;
+    NormalizedRGBA colors;
     boolean foundRed = false;
     boolean foundWhite = false;
     
     BNO055IMU imu;
     Orientation angles;
     Acceleration gravity;
+    double heading;
     boolean didTurn = false;
     boolean didStrafe = false;
     boolean atZero;
@@ -162,10 +164,6 @@ public class FourRingAutonomous extends LinearOpMode {
         //bs.setPosition(0);
         //_rf.setPosition(1);
         
-    //More telemetry data
-        telemetry.addData("Status", "Pre-Coded Robot Driving");
-        telemetry.update();
-        
     //Beginning Loop for Program
         if (opModeIsActive()) {
             
@@ -173,16 +171,23 @@ public class FourRingAutonomous extends LinearOpMode {
             //sleep(350);
             
             //shootRing(10);
+            encoders("n");
             
             if(quadStack) {
                 goToWhite();
-                
+                sleep(100);
+                goToRed();
             } else if(singleStack) {
                 goToWhite();
-                
+                sleep(100);
+                goToRed();
+                sleep(250);
+                turn("r", 180, 0.3);
+                sleep(100);
+                straightenRobot();
             } else {
                 goToWhite();                                         
-
+                goToRed();
             }
             forceStop();
         }
@@ -205,7 +210,7 @@ public class FourRingAutonomous extends LinearOpMode {
         int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
             "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
         TFObjectDetector.Parameters tfodParameters = new TFObjectDetector.Parameters(tfodMonitorViewId);
-       //tfodParameters.minResultConfidence = 0.8f;
+       tfodParameters.minResultConfidence = 0.8f;
        tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
        tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_FIRST_ELEMENT, LABEL_SECOND_ELEMENT);
     }
@@ -244,6 +249,20 @@ public class FourRingAutonomous extends LinearOpMode {
         lb.setPower(0);
     }
     
+    public void encoders(String answer) {
+        if (answer.equals("y")) {
+            rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            lf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        } else if (answer.equals("n")) {
+            rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            lb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        } 
+    }
+    
 
 //Method to Move Robot @ Designated Speed & Duration
     public void moveRobot(double rfSpeed, double lfSpeed, double rbSpeed, double lbSpeed, long dur) {
@@ -254,37 +273,36 @@ public class FourRingAutonomous extends LinearOpMode {
         sleep(dur);
     }
     
+    
 
 //Method to Find & Move to the White Line
     public void goToWhite() {
     //Needed (non-changing) Variables
-        final float[] hsvValues = new float[3];
-        angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+        int countWhite = 0;
         
     //If the "foundWhite" Boolean is False, Run Loop
         while (!foundWhite && opModeIsActive()) {
         //Needed (updating) Variables
-            NormalizedRGBA colors = colorSensor.getNormalizedColors();
-            Color.colorToHSV(colors.toColor(), hsvValues);
-            double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
-            int countWhite = 0;
+        NormalizedRGBA colors = colorSensor.getNormalizedColors();
+        angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
+        double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
             
         //If-Else-If Statment to Drive Forward in a Straight Line
             if (heading < -0.1  && heading > -90){
-                lf.setPower(0.35 - (0.025 * heading));
-                lb.setPower(0325 - (0.025 * heading));
-                rf.setPower(0.35 + (0.025 * heading));
-                rb.setPower(0.35 + (0.025 * heading));       
+                lf.setPower(0.3 - (0.025 * heading));
+                lb.setPower(0.3 - (0.025 * heading));
+                rf.setPower(0.3 + (0.025 * heading));
+                rb.setPower(0.3 + (0.025 * heading));       
             }else if (heading > 0.1 && heading < 90){
-                lf.setPower(0.35 + (0.025 * heading));
-                lb.setPower(0.35 + (0.025 * heading));
-                rf.setPower(0.35 - (0.025 * heading));
-                rb.setPower(0.35 - (0.025 * heading));    
+                lf.setPower(0.3 + (0.025 * heading));
+                lb.setPower(0.3 + (0.025 * heading));
+                rf.setPower(0.3 - (0.025 * heading));
+                rb.setPower(0.3 - (0.025 * heading));    
             } else {
-                lf.setPower(0.35);
-                lb.setPower(0.35);
-                rf.setPower(0.35);
-                rb.setPower(0.35);
+                lf.setPower(0.3);
+                lb.setPower(0.3);
+                rf.setPower(0.3);
+                rb.setPower(0.3);
             }
 
         //Telemetry Info for Diagnostics
@@ -307,7 +325,6 @@ public class FourRingAutonomous extends LinearOpMode {
     //Method to find & Move to the Red line
     public void goToRed() {
     //Needed (non-changing) Variables
-        final float[] hsvValues = new float[3];
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         int countRed = 0;
         
@@ -315,32 +332,31 @@ public class FourRingAutonomous extends LinearOpMode {
         while (!foundRed && opModeIsActive()) {
         //Needed (updating) Variables
             NormalizedRGBA colors = colorSensor.getNormalizedColors();
-            Color.colorToHSV(colors.toColor(), hsvValues);
             double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
             
         //If-Else-If Statement to Drive Forward in a Straight Line
-            if (heading < -0.1  && heading > -90){
-                lf.setPower(0.25 - (0.025 * heading));
-                lb.setPower(0.25 - (0.025 * heading));
-                rf.setPower(0.25 + (0.025 * heading));
-                rb.setPower(0.25 + (0.025 * heading));       
+            /*if (heading < -0.1  && heading > -90){
+                lf.setPower(0.3 - (0.025 * heading));
+                lb.setPower(0.3 - (0.025 * heading));
+                rf.setPower(0.3 + (0.025 * heading));
+                rb.setPower(0.3 + (0.025 * heading));       
             }else if (heading > 0.1 && heading < 90){
-                lf.setPower(0.25 + (0.025 * heading));
-                lb.setPower(0.25 + (0.025 * heading));
-                rf.setPower(0.25 - (0.025 * heading));
-                rb.setPower(0.25 - (0.025 * heading));    
+                lf.setPower(0.3 + (0.025 * heading));
+                lb.setPower(0.3 + (0.025 * heading));
+                rf.setPower(0.3 - (0.025 * heading));
+                rb.setPower(0.3 - (0.025 * heading));    
             } else {
-                lf.setPower(0.25);
-                lb.setPower(0.25);
-                rf.setPower(0.25);
-                rb.setPower(0.25);
-            }
+                lf.setPower(0.3);
+                lb.setPower(0.3);
+                rf.setPower(0.3);
+                rb.setPower(0.3);
+            } */
 
         //Telemetry Info for Diagnostics
             telemetry.addLine()
                 .addData("Alpha Output", "%.3f", colors.alpha)
                 .addData("Heading Output", "%.3f", heading)
-                .addData("Loop Count", "%,3f", countRed);
+                .addData("Loop Count", countRed);
             telemetry.update();
             
         //If Statement to Detect the Red Line and Break the Loop
@@ -372,15 +388,15 @@ public class FourRingAutonomous extends LinearOpMode {
     }
 
 
-    public void turn(char direction, int wantedTurn, double speed) {
+    public void turn(String direction, int wantedTurn, double speed) {
         while (opModeIsActive() && !didTurn) {
-            if (direction == 'r') {
+            if (direction.equals("r")) {
                 angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
                 double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
 
-                rf.setPower(speed);
+                rf.setPower(-speed);
                 lf.setPower(speed);
-                rb.setPower(speed);
+                rb.setPower(-speed);
                 lb.setPower(speed);
 
                 if (heading <= -(wantedTurn + 1) && heading >= -(wantedTurn - 1)) {
@@ -388,14 +404,14 @@ public class FourRingAutonomous extends LinearOpMode {
                     didTurn = true;
                 }
 
-            } else if (direction == 'l') {
+            } else if (direction.equals("l")) {
                 angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
                 double heading = Double.parseDouble(formatAngle(angles.angleUnit, angles.firstAngle));
 
                 rf.setPower(speed);
-                lf.setPower(speed);
+                lf.setPower(-speed);
                 rb.setPower(speed);
-                lb.setPower(speed);
+                lb.setPower(-speed);
 
                 if (heading <= (wantedTurn + 1) && heading >= (wantedTurn - 1)) {
                     stopRobot();
@@ -448,6 +464,11 @@ public class FourRingAutonomous extends LinearOpMode {
         rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+    }
+    
+    
+    public void encoderStraight() {
+        
     }
 
     public void straightenRobot() {

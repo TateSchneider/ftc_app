@@ -32,127 +32,128 @@ import java.util.Locale;
 
 @Autonomous(name = "CleanAuto", group = "comp")
 
-
 /*******************************************************************************
 *                              COMP PROGRAM: START                             *
 *******************************************************************************/
 
-// INITILIZATION
 public class CleanAuto extends LinearOpMode {
 
-// Declaring Motors
-    private     DcMotorEx     rf;         //port 0
-    private     DcMotorEx     lf;         //port 1
-    private     DcMotorEx     rb;         //port 2
-    private     DcMotorEx     lb;         //port 3
-    private     DcMotor     rs;         //port 0
-    private     DcMotorEx     rl1;        //port 1
-    private     DcMotorEx     rl2;        //port 2
-    private     DcMotor     as;         //port 3
-
-    private     Servo       _rf;        //port 0
-    private     Servo       ts;         //port 0
-    private     Servo       bs;         //port 1
-    
-    NormalizedColorSensor colorSensor;
-    NormalizedRGBA colors;
-    boolean foundRed = false;
-    boolean foundWhite = false;
-    
-    BNO055IMU imu;
-    Orientation angles;
-    Acceleration gravity;
-    double heading;
-    boolean turned180 = false;
-    boolean didStrafe = false;
-    boolean isStraight = false;
-    
-    boolean isShooting = false;
-    PIDBase pidRotate, pidDrive; //add
-    Orientation lastAngles = new Orientation(); //add
-    double globalAngle, power = .30, correction, rotation; //add
-    
-    boolean singleStack = false;
-    boolean quadStack = false;
-    
-//Declaring Camera Variables 
-    private TFObjectDetector tfod;
-    private VuforiaLocalizer vuforia;
-    private static final String LABEL_FIRST_ELEMENT = "Quad Stack";
-    private static final String LABEL_SECOND_ELEMENT = "Single Stack";
-    private static final String TFOD_MODEL_ASSET = "UltimateGoal.tflite";
-    private static final String VUFORIA_KEY = "ARxaOAX/////AAABmR91q9ci+kNYqGb/NElhuhBQa5klidYZ5jKk5hFYJ6qAQOtCGKSEZXn1qYawipXKEEpJh+vP3GNnOUvabO2blz4vkymDnu8LUocLc6/rMpQdLwBt80JVdgWWkd/4j1DmwDdRRP4f/jP78furjgexjT7HgmC37xLP+msr78zAeWwkrsT2X1yjnL6nyiGcRKlBw6+EcUIcZYiiuXwbILds8rl4Fu7AuecLaygDft6XIUFg/qQm51UF45l5pYT8AoNTUhP9GTksKkmHgde7iGlo3CfIYu9QanjPHreT/+JZLJWG22jWC7Nnzch/1HC6s3s2jzkrFV6sRVA4lL9COLIonjRBYPhbxCF06c5fUMy9sj/e";
+//Motor Variables
+    private     DcMotorEx       rf;
+    private     DcMotorEx       lf;
+    private     DcMotorEx       rb;
+    private     DcMotorEx       lb;
+    private     DcMotorEx       rl1;
+    private     DcMotorEx       rl2;
+    private     DcMotor         rs;
+    private     DcMotor         as;
+//Servo Variables
+    private     Servo           _rf;
+    private     Servo           ts;
+    private     Servo           bs;
+//Color Sensor Variables
+    private     NormalizedColorSensor   colorSensor;
+    private     NormalizedRGBA          colors;
+    private     boolean                 foundRed = false;
+    private     boolean                 foundWhite = false;
+//Gyro Variables
+    private     BNO055IMU               imu;
+    private     Orientation             angles;
+    private     Acceleration            gravity;
+    private     double                  heading;
+    private     boolean                 turned180 = false;
+//PID Variables
+    private     PIDBase                 pidRotate, pidDrive;
+    private     Orientation             lastAngles = new Orientation();
+    private     double                  globalAngle, power = .30, correction, rotation;
+//Camera Variables
+    private     boolean                 singleStack = false;
+    private     boolean                 quadStack = false;
+    private     TFObjectDetector        tfod;
+    private     VuforiaLocalizer        vuforia;
+    private     static final String     LABEL_FIRST_ELEMENT = "Quad Stack";
+    private     static final String     LABEL_SECOND_ELEMENT = "Single Stack";
+    private     static final String     TFOD_MODEL_ASSET = "UltimateGoal.tflite";
+    private     static final String     VUFORIA_KEY = "ARxaOAX/////AAABmR91q9ci+kNYqGb/NElhuhBQa5klidYZ5jKk5hFYJ6qAQOtCGKSEZXn1qYawipXKEEpJh+vP3GNnOUvabO2blz4vkymDnu8LUocLc6/rMpQdLwBt80JVdgWWkd/4j1DmwDdRRP4f/jP78furjgexjT7HgmC37xLP+msr78zAeWwkrsT2X1yjnL6nyiGcRKlBw6+EcUIcZYiiuXwbILds8rl4Fu7AuecLaygDft6XIUFg/qQm51UF45l5pYT8AoNTUhP9GTksKkmHgde7iGlo3CfIYu9QanjPHreT/+JZLJWG22jWC7Nnzch/1HC6s3s2jzkrFV6sRVA4lL9COLIonjRBYPhbxCF06c5fUMy9sj/e";
 
     @Override
     
     public void runOpMode() {
-        telemetry.addData("Stat", "Initializing...");
+    //Initialize Robot
+        telemetry.addLine()
+           .addData("Status", "Init...");
         telemetry.update();
         
-        startInit();
-            
-        telemetry.addData("Stat", "Start Program");
+        initRobot(1, 500);
+
+        telemetry.addLine()
+                .addData("Status", "Ready");
         telemetry.update();
         
     //Waiting for start via Player
         waitForStart();
+        //pidTurn(90, 0.3, 0.1, 0.001, 0.000005);
         
-    //Beginning Loop for Program
+    //Main Code
         if (opModeIsActive()) {
-            
-            pidTurn(90, 0.3, 0.1, 0.001, 0.000005);
-            /*moveInches(50, 800);
+        //Align for shooting
+            moveInches(50, 800);
             pidSenseLine(0.3, 0, 0.3, "white", 0.1, 0.001, 0.000005);
             moveInches(-10, 500);
-            //powerShot(200);
-            sleep(1000);
-            
+        //Shoot, Stop, Realign
+            shootRings(200);
+            sleep(250);
             forceStop();
-            
+            pidSenseLine(0.15, 0, 0.15, "white", 0.1, 0.001, 0.000005);
+            stopRobot();
+
+        //Go to box based on camera detection
             if(quadStack) {
-                encoders("n");
-                pidSenseLine(0.15, 0, 0.15, "white", 0.1, 0.001, 0.000005);
                 moveInches(48, 700);
-                encoders("n");
                 turn(0.5, 94);
                 moveInches(-30, 700);
-                encoders("n");
                 dropWobble();
                 moveInches(38, 700);
-                encoders("n");
                 turn(0.4, 180);
-                senseLine("white", 0.3);
+                senseLine("white", 0.3);            //TRY PID
                 forceStop();
             } else if(singleStack) {
-                encoders("n");
-                pidSenseLine(0.15, 0, 0.15, "white", 0.1, 0.001, 0.000005);
                 moveInches(24, 700);
                 turn(0.5, 130);
                 moveInches(2, 500);
                 dropWobble();
                 moveInches (5, 500);
                 turn(0.5, 180);
-                senseLine("white", 0.3);
+                senseLine("white", 0.3);           //TRY PID
                 forceStop();
             } else {
-                encoders("n");
-                pidSenseLine(0.15, 0, 0.15, "white", 0.1, 0.001, 0.000005); // 0.25
-                senseLine("red", 0.3);
+                moveInches(10, 600);
                 turn(0.33, 90);
                 moveInches(-24, 600);
                 dropWobble();
-                as.setPower(1);
-                sleep (50);
+                moveInches(12, 600);
+
+            //Start for 2nd Wobble
+                /* pidSenseLine(0.25, 0, 0.25, "red", 0.1, 0.001, 0.000005);
+                turn(0.33, 90);
+                moveInches(-24, 600);
+                dropWobble();
+                moveInches(63, 850);
+                turn(0.5, 180); */
+
             }
             as.setPower(-1);
             sleep(400);
-            forceStop(); */
+            forceStop();
         }
     }
 
+    /************************************************************
+     *                     EXTERNAL METHODS                     *
+     ************************************************************/
 
-//Method to Completely Stop ALL Robot Movement
-    private void forceStop() {
+//Stops Robot Movement
+    public void forceStop() {
         rf.setPower(0);
         lf.setPower(0);
         rb.setPower(0);
@@ -161,104 +162,90 @@ public class CleanAuto extends LinearOpMode {
         rs.setPower(0);
         rl1.setPower(0);
         rl2.setPower(0);
-        bs.setPosition(0);
-        _rf.setPosition(0.8);
     }
 
-
-//Method to Halt Robot Movement
+//Stops Robot Driving
     public void stopRobot() {
         rf.setPower(0);
         lf.setPower(0);
         rb.setPower(0);
         lb.setPower(0);
     }
-    
-    void powerShot (int inches) {
-        double lengthUsingInches = -inches;
-       
-        rl1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
-        rl2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
 
-        rl1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rl2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        
-        double calcPosition = lengthUsingInches * (100* 280/(16.9646003294*4 *8.8 * 1.0555555556));
-        int setPosition = (int) Math.round(calcPosition);
-
-        rl1.setTargetPosition(setPosition);
-        rl2.setTargetPosition(setPosition);
-
-        rl1.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-        rl2.setMode(DcMotor.RunMode.RUN_TO_POSITION);
-
-        rl1.setVelocity(2060); //1850 o 1880
-        rl2.setVelocity(2060); //1850 0 1880
-        
-        sleep(1900);
-
-        while (opModeIsActive() && (Math.abs(setPosition) >= Math.abs(rl1.getCurrentPosition()))) {
-            telemetry.addData("position", rl2.getCurrentPosition());
-            telemetry.addData("is at target", !rl2.isBusy());
-            telemetry.update();
-            
-            _rf.setPosition(0.4);
-            sleep(300);
-            _rf.setPosition(0.8);
-            sleep(300); 
-        
-            rs.setPower(1);
-        }
-
-        rl1.setPower(0);
-        rl1.setPower(0);
-        
-        rl1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rl2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-
-        rl1.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rl2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        
-        telemetry.addData("position", rl2.getCurrentPosition());
-        telemetry.addData("is at target", !rl2.isBusy());
-        telemetry.update();
-                
-     }
-    
-    public void encoders(String answer) {
-        if (answer.equals("y")) {
-            lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        
-            rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            lf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-            lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        } else if (answer.equals("n")) {
-            lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-            
-            rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-            lb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        } 
-    }
-    
+//Drops Wobble
     public void dropWobble() {
         bs.setPosition(0.5);
         sleep(100);
         ts.setPosition(0.5);
         sleep(400);
     }
-    
 
-//Method to Find & Move to the White Line
-    void senseLine(String color, double speed) {
+//Shoots Rings
+    public void shootRings (int inches) {
+        double lengthUsingInches = -inches;
+        double calcPosition = lengthUsingInches * (100* 280/(16.9646003294*4 *8.8 * 1.0555555556));
+        int setPosition = (int) Math.round(calcPosition);
+
+        rl1.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        rl2.setZeroPowerBehavior(DcMotor.ZeroPowerBehavior.BRAKE);
+        encoders("y");
+
+        rl1.setTargetPosition(setPosition);
+        rl2.setTargetPosition(setPosition);
+        rl1.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rl2.setMode(DcMotor.RunMode.RUN_TO_POSITION);
+        rl1.setVelocity(2060);
+        rl2.setVelocity(2060);
+        sleep(1900);
+
+        while (opModeIsActive() && (Math.abs(setPosition) >= Math.abs(rl1.getCurrentPosition()))) {
+            _rf.setPosition(0.4);
+            sleep(300);
+            _rf.setPosition(0.8);
+            sleep(300);
+            rs.setPower(1);
+        }
+        rl1.setPower(0);
+        rl1.setPower(0);
+
+        encoders("n");
+     }
+
+//Specify Encoders on or off
+    public void encoders(String answer) {
+        if (answer.equals("y")) {
+            lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rl1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rl2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            lf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rl1.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+            rl2.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
+        } else if (answer.equals("n")) {
+            lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rl1.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rl2.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
+            rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            lb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rl1.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+            rl2.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        } 
+    }
+    
+/****************************************
+ *   Inaccurate look into taking out    *
+ ****************************************/
+    public void senseLine(String color, double speed) {
         //Needed (non-changing) Variables
         final float[] hsvValues = new float[3];
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
@@ -328,11 +315,11 @@ public class CleanAuto extends LinearOpMode {
             }
         }
     }
-    
-    void pidSenseLine(double speed, double time, double finalSpeed, String color, double kP, double kI, double kD) {
-        double currentMili = System.currentTimeMillis();
-        pidDrive = new PIDBase(kP, kI, kD);
 
+ //Finds Red or White Line
+    public void pidSenseLine(double speed, double time, double finalSpeed, String color, double kP, double kI, double kD) {
+        double wantedTime = System.currentTimeMillis() + time;
+        pidDrive = new PIDBase(kP, kI, kD);
         pidDrive.setSetpoint(0);
         pidDrive.setOutputRange(0, power);
         pidDrive.setInputRange(-90, 90);
@@ -342,12 +329,9 @@ public class CleanAuto extends LinearOpMode {
         angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         foundRed = false;
         foundWhite = false;
-        int countRed = 0;
-        int countWhite = 0;
         
-        while ((currentMili + time > System.currentTimeMillis()) && opModeIsActive()) {
+        while (wantedTime > System.currentTimeMillis() && opModeIsActive()) {
             correction = pidDrive.performPID(getAngle());
-
             lf.setPower(speed - correction);
             lb.setPower(speed - correction);
             rf.setPower(speed + correction);
@@ -362,34 +346,22 @@ public class CleanAuto extends LinearOpMode {
             lb.setPower(finalSpeed - correction);
             rf.setPower(finalSpeed + correction);
             rb.setPower(finalSpeed + correction);
-        
-            if (color.equals("red")) {
-                if (colors.alpha < 0.2) {
-                    stopRobot();
-                    foundRed = true;
-                }
-                countRed++;
-            } else if (color.equals("white")) {
-                if (colors.alpha > 0.5) {
-                    stopRobot();
-                    foundWhite = true;
-                }
-                countWhite++;
-            } else {
+
+            if (colors.alpha < 0.2) {
                 stopRobot();
+                foundRed = true;
             }
-            
+            if (colors.alpha > 0.5) {
+                stopRobot();
+                foundWhite = true;
+            }
         }
     }
-    
+
+ //Turns Designated Degree
     public void pidTurn(int angleMeasure, double finalSpeed, double kP, double kI, double kD) {
-        rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
         turned180 = false;
         pidDrive = new PIDBase(kP, kI, kD);
-
         pidDrive.setSetpoint(0);
         pidDrive.setOutputRange(0, power);
         pidDrive.setInputRange(-90, 90);
@@ -421,7 +393,10 @@ public class CleanAuto extends LinearOpMode {
     }
 
 
-    void turn(double speed, int angleMeasure) {
+    /****************************************
+     *   Inaccurate look into taking out    *
+     ****************************************/
+    public void turn(double speed, int angleMeasure) {
         turned180 = false;
         while (opModeIsActive() && !turned180) {
             angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
@@ -446,19 +421,10 @@ public class CleanAuto extends LinearOpMode {
             }
         }
     }
-    
-    void moveInches(double lengthUsingInches, double velocity) {
-        
-        lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        
-        lf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rf.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        lb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        rb.setMode(DcMotor.RunMode.RUN_USING_ENCODER);
-        
+
+ //Moves Robot Forward @ Exact Measurement
+    public void moveInches(double lengthUsingInches, double velocity) {
+        encoders("y");
         double calcPosition = lengthUsingInches * (100* 280/(16.9646003294*4 *8.8 * 1.0555555556));
         int setPosition = (int) Math.round(calcPosition);
 
@@ -482,28 +448,16 @@ public class CleanAuto extends LinearOpMode {
             telemetry.addData("is at target", !lf.isBusy());
             telemetry.update();
         }
-
-        lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        rb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
-        
-        lf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rf.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        lb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
-        rb.setMode(DcMotor.RunMode.RUN_WITHOUT_ENCODER);
+        encoders("n");
     }
-    
-    private void initVuforia() {
-        
-        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
 
+ //Camera Methods
+    private void initVuforia() {
+        VuforiaLocalizer.Parameters parameters = new VuforiaLocalizer.Parameters();
         parameters.vuforiaLicenseKey = VUFORIA_KEY;
         parameters.cameraName = hardwareMap.get(WebcamName.class, "Webcam 1");
-
         vuforia = ClassFactory.getInstance().createVuforia(parameters);
     }
-
     private void initTfod() {
         int tfodMonitorViewId = hardwareMap.appContext.getResources().getIdentifier(
             "tfodMonitorViewId", "id", hardwareMap.appContext.getPackageName());
@@ -512,23 +466,20 @@ public class CleanAuto extends LinearOpMode {
        tfod = ClassFactory.getInstance().createTFObjectDetector(tfodParameters, vuforia);
        tfod.loadModelFromAsset(TFOD_MODEL_ASSET, LABEL_FIRST_ELEMENT, LABEL_SECOND_ELEMENT);
     }
-    
-    
-    
+
+ //IMU Methods
     String formatAngle(AngleUnit angleUnit, double angle) {
         return formatDegrees(AngleUnit.DEGREES.fromUnit(angleUnit, angle));
     }
-    
     String formatDegrees(double degrees){
         return String.format(Locale.getDefault(), "%.1f", AngleUnit.DEGREES.normalize(degrees));
     }
-    
+
+ //PID Methods
     private void resetAngle() {
         lastAngles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         globalAngle = 0;
     }
-
-
     private double getAngle() {
         Orientation angles = imu.getAngularOrientation(AxesReference.INTRINSIC, AxesOrder.ZYX, AngleUnit.DEGREES);
         double deltaAngle = angles.firstAngle - lastAngles.firstAngle;
@@ -538,16 +489,12 @@ public class CleanAuto extends LinearOpMode {
         } else if (deltaAngle > 180) {
             deltaAngle -= 360;
         }
-
         globalAngle += deltaAngle;
         lastAngles = angles;
         return globalAngle;
     }
-
-
     private void rotate(int degrees, double power) {
         resetAngle();
-
         if (Math.abs(degrees) > 359) degrees = (int) Math.copySign(359, degrees);
 
         pidRotate.reset();
@@ -566,13 +513,14 @@ public class CleanAuto extends LinearOpMode {
                 sleep(100);
             }
 
-            do{
+            do {
                 power = pidRotate.performPID(getAngle()); // power will be - on right turn.
                 lf.setPower(-power);
                 rf.setPower(power);
                 lb.setPower(-power);
                 rb.setPower(power);
             } while (opModeIsActive() && !pidRotate.onTarget());
+
         } else {
             do {
                 power = pidRotate.performPID(getAngle()); // power will be + on left turn.
@@ -593,31 +541,34 @@ public class CleanAuto extends LinearOpMode {
             resetAngle();
         }
     }
-    
-    public void startInit() {
+
+ //Initializes Robot
+    public void initRobot(double asPower, int asDur) {
+    //Initializing Motors
         rf  =   hardwareMap.get(DcMotorEx.class, "rightFront");
         lf  =   hardwareMap.get(DcMotorEx.class, "leftFront");
         rb  =   hardwareMap.get(DcMotorEx.class, "rightBack");
         lb  =   hardwareMap.get(DcMotorEx.class, "leftBack");
-        
-        rs  =   hardwareMap.dcMotor.get("ringScoop");
         rl1 =   hardwareMap.get(DcMotorEx.class, "ringLaunch1");
         rl2 =   hardwareMap.get(DcMotorEx.class, "ringLaunch2");
+        rs  =   hardwareMap.dcMotor.get("ringScoop");
         as  =   hardwareMap.dcMotor.get("armString");
-        
+    //Initializing Servos
         _rf =   hardwareMap.servo.get("ringFling");
         ts  =   hardwareMap.servo.get("topServo");
         bs  =   hardwareMap.servo.get("bottomServo");
-        
-        // Extra Motor Steps
+
+    //Modifying Left-Side Motors
         lf.setDirection(DcMotorSimple.Direction.REVERSE);    //Reverse
         lb.setDirection(DcMotorSimple.Direction.REVERSE);    //Reverse
-        
+
+    //Initializing Color Sensor
         colorSensor = hardwareMap.get(NormalizedColorSensor.class, "sensorColor");
         if (colorSensor instanceof SwitchableLight) {
             ((SwitchableLight)colorSensor).enableLight(true);
         }
-        
+
+    //Initializing IMU
         BNO055IMU.Parameters parameters = new BNO055IMU.Parameters();
         parameters.angleUnit           = BNO055IMU.AngleUnit.DEGREES;
         parameters.accelUnit           = BNO055IMU.AccelUnit.METERS_PERSEC_PERSEC;
@@ -626,44 +577,45 @@ public class CleanAuto extends LinearOpMode {
         parameters.loggingTag          = "IMU";
         parameters.accelerationIntegrationAlgorithm = new JustLoggingAccelerationIntegrator();
         imu = hardwareMap.get(BNO055IMU.class, "imu");
-        
-        //Initialize Camera
+    //Calibrating IMU
+        imu.initialize(parameters);
+
+    //Initializing Camera
         initVuforia();
         initTfod();
         if (tfod != null) {
             tfod.activate();
         }
         
-        //Camera Detection
+    //Moving Servos
         ts.setPosition(0.99);
         bs.setPosition(0);
         _rf.setPosition(0.8);
         sleep(200);
-        
-        //as.setPower(1);
-        //sleep(500);
+
+    //Moving Wobble Arm
+        //as.setPower(asPower);
+        //sleep(asDur);
         forceStop();
-        
-        
-        while (!opModeIsActive()) {
-            if (tfod != null) {
-                List<Recognition> updatedRecognitions = tfod.getUpdatedRecognitions();
-                if (updatedRecognitions != null) {
-                    telemetry.addData("# of Rings", updatedRecognitions.size()); //# Object Detected
-                    for (Recognition recognition : updatedRecognitions) {
-                        telemetry.addData(String.format("Label"), recognition.getLabel());
-                        if(recognition.getLabel() == LABEL_SECOND_ELEMENT) {
-                            singleStack = true;
-                        } else if(recognition.getLabel() == LABEL_FIRST_ELEMENT) {
-                            quadStack = true;
-                        }
+
+    //Camera Detection for # of Rings
+        if (tfod != null) {
+            List<Recognition> updatedRecognitions = tfod.getUpdatedRecognitions();
+            if (updatedRecognitions != null) {
+                telemetry.addData("# of Rings", updatedRecognitions.size());
+                for (Recognition recognition : updatedRecognitions) {
+                    telemetry.addData(String.format("Label"), recognition.getLabel());
+                    if (recognition.getLabel() == LABEL_SECOND_ELEMENT) {
+                        singleStack = true;
+                    } else if (recognition.getLabel() == LABEL_FIRST_ELEMENT) {
+                        quadStack = true;
                     }
-                    telemetry.update();
                 }
+                telemetry.update();
             }
         }
-        imu.initialize(parameters);
-        
+
+    //Resetting ALL Encoders
         lf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         rf.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
         lb.setMode(DcMotor.RunMode.STOP_AND_RESET_ENCODER);
